@@ -1,0 +1,73 @@
+---
+title: "airnow_clean_step2"
+author: "Leyao Li"
+date: "9/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+df <- read.csv('/Users/lingfengcao/Leyao/ANLY501/Portfolio_Code_for_cleanData/airnow_data/air_df_0922.csv')
+
+df_new <- df
+```
+
+
+```{r cars}
+## create 4 new feature columns to substitue the original parameter and AQI columns
+## and merge 2 rows of data of the the same day into 1 single row
+
+
+df_new['PM2.5'] <- NA
+df_new['PM2.5_Category'] <- NA
+df_new['OZONE'] <- NA
+df_new['OZONE_Category'] <- NA
+
+## create a list of numbers that contains odd numbers for accessing the rows
+justodd <- function(x) x[ x %% 2 == 1 ]
+odd_nums <- justodd(0:418)
+
+## fill in the PM2.5 AQI data from df to df_new
+for (i in odd_nums){
+  df_new[i,13] <- df[i+1,10]
+}
+## fill in the PM2.5 Category name from df to df_new
+## 1: Good
+## 2: Moderate
+## 3: Unhealthy for Sensitive Groups	
+for (i in odd_nums){
+  df_new[i,14] <- df[i+1,12]
+}
+## fill in the OZONE AQI data from df to df_new
+for (i in odd_nums){
+  df_new[i,15] <- df[i,10]
+}
+## fill in the OZONE Category name from df to df_new
+## 1: Good
+## 2: Moderate
+## 3: Unhealthy for Sensitive Groups	
+for (i in odd_nums){
+  df_new[i,16] <- df[i,12]
+}
+
+## now delete all other rows with NA values
+df_new <- na.omit(df_new)
+
+## since this set of data was coming from the same place
+## all data about the location can be removed
+df_clean <- df_new[ , c("DateObserved","PM2.5",'PM2.5_Category','OZONE','OZONE_Category')]
+```
+
+## Including Plots
+
+
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+## plot the counts of days grouped by PM 2.5 quality category
+ggplot(df_clean, aes(x=PM2.5_Category)) + geom_histogram(binwidth=0.5) +  scale_x_continuous(breaks =c(1,2,3) )
+
+## plot the counts of days grouped by Ozone quality category
+ggplot(df_clean, aes(x=OZONE_Category)) + geom_histogram(binwidth=0.5) +  scale_x_continuous(breaks =c(1,2,3) )
+```
+
+
