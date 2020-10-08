@@ -1,0 +1,91 @@
+---
+title: "ANLY501_HW_MOD3_ff"
+author: "Leyao Li"
+date: "10/5/2020"
+output: html_document
+---
+ 3 methods to determine optimal k
+```{r}
+library(factoextra)
+df <- read.csv('/Users/lingfengcao/Leyao/ANLY501/HW MOD03/forestfires.csv')
+# drop columns with text data
+df <- df[-c(3,4)]
+# run silhouette method and the optimal number of clusters is 2
+fviz_nbclust(df, kmeans, method = "silhouette")
+# run elbow method and the optimal number of clusters is 2
+fviz_nbclust(df, kmeans, method = "wss")
+# run gap stats method and the optimal number of clusters is 3
+fviz_nbclust(df, kmeans, method = "gap_stat")
+
+```
+
+K means cluster and visualization (k=3 and k=2)
+
+```{r}
+# run k means cluster with k = 3
+res.km3 <- kmeans(scale(df), 3, nstart = 25)
+# plot clustering
+fviz_cluster(res.km3, data = df,
+             palette = c("blue", "red", "yellow"), 
+             geom = "point",
+             ellipse.type = "convex", 
+             ggtheme = theme_bw(),
+             title = 'cluster with k=3'
+             )
+
+# run k means cluster with k = 2
+res.km2 <- kmeans(scale(df), 2, nstart = 25)
+# plot clustering
+fviz_cluster(res.km2, data = df,
+             palette = c("blue", "red"), 
+             geom = "point",
+             ellipse.type = "convex", 
+             ggtheme = theme_bw(),
+             title = 'cluster with k=2'
+             )
+
+```
+
+Hierarchical clustering
+```{r}
+# Euclidean distance matrix 
+d_euc <- dist(df, method = "euclidean")
+# Manhattan distance matrix
+d_man <- dist(df, method = "manhattan")
+# Minkowski distance matrix
+d_min <- dist(df, method = "minkowski")
+
+# Hierarchical clustering using Ward Linkage
+hc_euc <- hclust(d_euc, method = "ward.D" )
+hc_man <- hclust(d_man, method = "ward.D" )
+hc_min <- hclust(d_min, method = "ward.D" )
+
+# Plot the obtained dendrogram of 3 different distance matrices used
+# euclidean
+plot(hc_euc, cex = 0.6, hang = -1, main='Hierarchical cluster with Euclidean distance')
+
+# manhattan
+plot(hc_man, cex = 0.6, hang = -1, main='Hierarchical cluster with Manhattan distance')
+
+# minkowski
+plot(hc_min, cex = 0.6, hang = -1, main='Hierarchical cluster with Minkowski distance')
+```
+
+dbscan clustering
+```{r}
+# install.packages('fpc')
+# install.packages('dbscan')
+library("fpc")
+library('dbscan')
+# determine optimal eps value
+dbscan::kNNdistplot(df, k =  3)
+abline(h = 0.15, lty = 2)
+# it seems like optimal eps value would be around 100
+
+# compute DBSCAN using fpc package
+db <- fpc::dbscan(df, eps =100, MinPts = 3)
+
+# plot 
+fviz_cluster(db, df, ellipse = FALSE, title='dbscan plot for eps=100')
+print(db)
+```
