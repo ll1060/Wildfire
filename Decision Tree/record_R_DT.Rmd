@@ -1,0 +1,93 @@
+---
+title: "501_HW_MOD5"
+author: "Leyao Li"
+date: "10/29/2020"
+output: html_document
+---
+
+```{r}
+#install.packages("e1071")
+#install.packages('caret')
+#install.packages("naivebayes")
+#install.packages('randomForest')
+#install.packages('party')
+#install.packages('rattle')
+library(ggplot2)
+library(plyr) ## load this BEFORE dplyr
+library(dplyr)
+library(lattice)
+library(caret) 
+library(e1071)
+#library(ElemStatLearn)
+library(randomForest)
+library(datasets) 
+library(caTools) 
+library(party) 
+library(magrittr) 
+library(rpart)
+library(rattle)
+```
+
+
+prepare data
+test and train split
+remove label from test and train data
+```{r}
+set.seed(66)
+df = read.csv('labeled_forestfires_v2.csv')
+#df <- df[-c(1:70), ]
+sample_data = sample.split(df,SplitRatio = 0.75)
+train_data <- subset(df, sample_data == TRUE) 
+test_data <- subset(df, sample_data == FALSE) 
+train_label <- train_data$area_label
+test_true_label <- test_data$area_label
+drops = c('X.1','X','Y','area','area_label','Unnamed..0')
+train_data = train_data[ , !(names(train_data) %in% drops)]
+test_data = test_data[ , !(names(test_data) %in% drops)]
+
+```
+
+categorize all the 8 features in the dataset
+
+```{r}
+#categorize in train data
+train_data$FFMC.cat <- cut(train_data$FFMC,breaks=4,labels=c('very small','small','medium','large'))
+train_data$DMC.cat <- cut(train_data$DMC,breaks=4,labels=c('very small','small','medium','large'))
+train_data$DC.cat <- cut(train_data$DC,breaks=4,labels=c('very small','small','medium','large'))
+train_data$ISI.cat <- cut(train_data$ISI,breaks=4,labels=c('very small','small','medium','large'))
+train_data$temp.cat <- cut(train_data$temp,breaks=4,labels=c('very small','small','medium','large'))
+train_data$RH.cat <- cut(train_data$RH,breaks=4,labels=c('very small','small','medium','large'))
+train_data$wind.cat <- cut(train_data$wind,breaks=4,labels=c('very small','small','medium','large'))
+train_data$rain.cat <- cut(train_data$rain,breaks=4,labels=c('very small','small','medium','large'))
+
+#categorize in test data
+test_data$FFMC.cat <- cut(test_data$FFMC,breaks=4,labels=c('very small','small','medium','large'))
+test_data$DMC.cat <- cut(test_data$DMC,breaks=4,labels=c('very small','small','medium','large'))
+test_data$DC.cat <- cut(test_data$DC,breaks=4,labels=c('very small','small','medium','large'))
+test_data$ISI.cat <- cut(test_data$ISI,breaks=4,labels=c('very small','small','medium','large'))
+test_data$temp.cat <- cut(test_data$temp,breaks=4,labels=c('very small','small','medium','large'))
+test_data$RH.cat <- cut(test_data$RH,breaks=4,labels=c('very small','small','medium','large'))
+test_data$wind.cat <- cut(test_data$wind,breaks=4,labels=c('very small','small','medium','large'))
+test_data$rain.cat <- cut(test_data$rain,breaks=4,labels=c('very small','small','medium','large'))
+
+# now only keep the categorical columns and save them as cat_train_data and cat_test_data
+cat_train_data = train_data[,-c(1,2,3,4,5,6,7,8)]
+cat_train_data$train_label = train_label
+
+cat_test_data = test_data[,-c(1,2,3,4,5,6,7,8)]
+cat_test_data$test_true_label = test_true_label
+```
+
+trian the decision tree
+```{r}
+tree_fit<- rpart(cat_train_data$train_label ~ ., 
+                         data = cat_train_data, method="class")
+summary(tree_fit)
+```
+test and plot the decision tree model
+```{r}
+predicted_ff= predict(tree_fit,test_data, type="class")
+(results_ff <- data.frame(Predicted=predicted_ff,Actual=test_true_label))
+table(results_ff)
+fancyRpartPlot(tree_fit)
+```
