@@ -1,0 +1,139 @@
+---
+title: "Tweets_NB_SVM_R"
+author: "Leyao Li"
+date: "11/19/2020"
+output: html_document
+---
+
+```{r}
+
+df<- read.csv('tweets_labeled_clean.csv')
+
+df <- df[-c(1,2,3,4,5,6,7,8)]
+
+
+#df<- subset(df, sentiment_label == "positive"| sentiment_label == "negative")
+df$clean_tweet <- lapply(df$clean_tweet, as.character)
+
+# Clean text to remove odd characters
+df$clean_tweet <- sapply(df$clean_tweet,function(row) iconv(row, "UTF-8", "ASCII", sub=""))
+
+# more cleaning
+library("tm")
+tweet_corpus <- VCorpus(VectorSource(df$clean_tweet))
+tweet_corpus_clean <- tm_map(tweet_corpus, content_transformer(tolower))
+
+tweet_dtm <- DocumentTermMatrix(tweet_corpus_clean)
+```
+
+
+train and test split
+```{r}
+
+
+train_data <- tweet_dtm[1:3807,]
+test_data <- tweet_dtm[3807:4759,]
+
+
+train_labels <- df[1:3807, ]$sentiment_label
+test_labels <- df[3807:4759, ]$sentiment_label
+
+# check if label ratios are similar in train and test 
+prop.table(table(train_labels))
+prop.table(table(test_labels))
+```
+
+generate a wordcloud to compare pos and neg tweets
+
+```{r}
+library(wordcloud)
+
+
+pos_t <- subset(df, sentiment_label == "positive")
+neg_t <- subset(df, sentiment_label == "negative")
+wordcloud(pos_t$clean_tweet, max.words = 50)
+wordcloud(neg_t$clean_tweet, max.words = 50)
+
+## remove words that appear less than 5 times
+tweet_freq_words <- findFreqTerms(train_data, 5)
+
+
+freq_train_data <- train_data[ , tweet_freq_words]
+freq_test_data <- test_data[ , tweet_freq_words]
+
+## The naive bayes classifier works with categorical reatures, so we need to convert the matrix to “yes” and “no” categorical variables.
+convert_counts <- function(x) {
+  x <- ifelse(x > 0, "Yes", "No")
+}
+
+tweet_train <- apply(freq_train_data, MARGIN = 2, convert_counts)
+tweet_test <- apply(freq_test_data , MARGIN = 2, convert_counts)
+```
+
+run NB for tweets
+```{r}
+#install.packages('e1071')
+library(e1071)
+
+myNB_tweet <-  naiveBayes(tweet_train, train_labels)
+tweet_pred <- predict(myNB_tweet, tweet_test)
+
+## visualize
+table(tweet_pred,test_labels)
+plot(tweet_pred)
+
+```
+
+run SVM for tweets
+```{r}
+convert_counts_tf <- function(x) {
+  x <- ifelse(x > 0, TRUE, FALSE)
+}
+
+tweet_train_tf <- apply(freq_train_data, MARGIN = 2, convert_counts_tf)
+tweet_test_tf <- apply(freq_test_data , MARGIN = 2, convert_counts_tf)
+mySVM_tweet <- svm(tweet_train_tf,train_labels)
+tweet_pred_SVM <- predict(mySVM_tweet,tweet_test_tf)
+# mySVM_tweet <- svm(tweet_train,kernel='linear',cost=10)
+# tweet_pred_SVM <- predict(mySVM_tweet,tweet_test_tf)
+
+table(tweet_pred_SVM,test_labels)
+
+```
+
+
+
+Forest Fire data
+```{r}
+df_ff <- read.csv('labeled_forestfires_v3.csv')
+
+df_ff <- df_ff[-c(1,2,3,4,13)]
+df_ff <- df_ff[-c(1:80),]
+train_data_ff <- df_ff[1:353,]
+test_data_ff <- df_ff[354:437,]
+
+
+train_labels_ff <- df_ff[1:353,]$area_label
+test_labels_ff <- df_ff[354:437, ]$area_label
+
+# check if label ratios are similar in train and test 
+prop.table(table(train_labels_ff))
+prop.table(table(test_labels_ff))
+
+
+## run NB
+myNB_ff <-  naiveBayes(train_data_ff,train_labels_ff)
+ff_pred <- predict(myNB_ff, test_data_ff)
+
+## visualize
+table(ff_pred,test_labels_ff)
+plot(ff_pred)
+
+## run svm
+mySVM_ff <- svm(area_label~.,data=train_data_ff,kernel='linear',cost=10)
+ff_pred_SVM <- predict(mySVM_ff, test_data_ff)
+
+table(ff_pred_SVM,test_labels_ff)
+
+plot(mySVM_ff,train_data_ff,DC~wind)
+```
